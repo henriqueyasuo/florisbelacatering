@@ -443,17 +443,17 @@
    CONFIGURAÇÃO — preencha com os dados do SEU projeto Supabase
    (Project Settings > API, no painel do Supabase)
    ====================================================================== */
-const SUPABASE_URL = "https://mtxiheyfbfwugkdmurzs.supabase.co";       // ex: https://xxxxx.supabase.co
+const SUPABASE_URL = "https://mtxiheyfbfwugkdmurzs.supabaseClient.co";       // ex: https://xxxxx.supabaseClient.co
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10eGloZXlmYmZ3dWdrZG11cnpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MTk1ODYsImV4cCI6MjA5ODQ5NTU4Nn0.kHnVPLMVxc9jWEMq8voUiCJqH8tiePzYfA-IUPXOmMs";       // chave "anon public"
 
 /* ====================================================================== */
 
-let supabase = null;
+let supabaseClient = null;
 let configOk = SUPABASE_URL.startsWith("http") && SUPABASE_ANON_KEY.length > 10;
 if (configOk) {
   try{
     if(!window.supabase) throw new Error("Biblioteca do Supabase não carregou (CDN bloqueado ou sem internet).");
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   } catch(err){
     console.error(err);
     configOk = false;
@@ -500,7 +500,7 @@ async function verificarSessao(){
     boot();
     return;
   }
-  const { data } = await supabase.auth.getSession();
+  const { data } = await supabaseClient.auth.getSession();
   if(data.session){
     document.getElementById('loginGate').style.display = 'none';
     document.getElementById('app').style.display = 'block';
@@ -517,7 +517,7 @@ loginForm.addEventListener('submit', async (e)=>{
   loginBtn.textContent = "Entrando...";
 
   try{
-    const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password: senha });
 
     if(error){
       console.error('Erro de login:', error);
@@ -543,7 +543,7 @@ loginForm.addEventListener('submit', async (e)=>{
 });
 
 document.getElementById('logoutBtn').addEventListener('click', async ()=>{
-  await supabase.auth.signOut();
+  await supabaseClient.auth.signOut();
   document.getElementById('app').style.display = 'none';
   document.getElementById('loginGate').style.display = 'flex';
   document.getElementById('loginEmail').value = '';
@@ -590,7 +590,7 @@ document.getElementById('fabAdd').addEventListener('click', ()=>{
 
 /* ================= PRODUTOS ================= */
 async function carregarProdutos(){
-  const { data, error } = await supabase.from('produtos').select('*').eq('ativo', true).order('nome');
+  const { data, error } = await supabaseClient.from('produtos').select('*').eq('ativo', true).order('nome');
   if(error){ toast('Erro ao carregar produtos'); console.error(error); return; }
   produtosCache = data || [];
   renderProdutos();
@@ -657,9 +657,9 @@ document.getElementById('produtoSalvar').addEventListener('click', async ()=>{
 
   let error;
   if(produtoEditandoId){
-    ({ error } = await supabase.from('produtos').update({ nome, categoria, ingredientes }).eq('id', produtoEditandoId));
+    ({ error } = await supabaseClient.from('produtos').update({ nome, categoria, ingredientes }).eq('id', produtoEditandoId));
   } else {
-    ({ error } = await supabase.from('produtos').insert({ nome, categoria, ingredientes }));
+    ({ error } = await supabaseClient.from('produtos').insert({ nome, categoria, ingredientes }));
   }
   if(error){ toast('Erro ao salvar'); console.error(error); return; }
   document.getElementById('overlayProduto').classList.remove('open');
@@ -668,7 +668,7 @@ document.getElementById('produtoSalvar').addEventListener('click', async ()=>{
 });
 async function excluirProduto(id){
   if(!confirm('Excluir este produto?')) return;
-  const { error } = await supabase.from('produtos').update({ ativo:false }).eq('id', id);
+  const { error } = await supabaseClient.from('produtos').update({ ativo:false }).eq('id', id);
   if(error){ toast('Erro ao excluir'); return; }
   toast('Produto excluído');
   await carregarProdutos();
@@ -676,7 +676,7 @@ async function excluirProduto(id){
 
 /* ================= EVENTOS ================= */
 async function carregarEventos(){
-  const { data, error } = await supabase.from('eventos').select('*').order('data_evento', { ascending:true });
+  const { data, error } = await supabaseClient.from('eventos').select('*').order('data_evento', { ascending:true });
   if(error){ toast('Erro ao carregar eventos'); console.error(error); return; }
   eventosCache = data || [];
   renderEventos();
@@ -741,7 +741,7 @@ function abrirModalEvento(id){
     document.getElementById('eventoHora').value = ev.hora_evento || '';
     document.getElementById('eventoLocal').value = ev.local || '';
     document.getElementById('eventoObs').value = ev.observacoes || '';
-    supabase.from('evento_produtos').select('produto_id').eq('evento_id', id).then(({data})=>{
+    supabaseClient.from('evento_produtos').select('produto_id').eq('evento_id', id).then(({data})=>{
       renderSeletorProdutos((data||[]).map(x=>x.produto_id));
     });
   } else {
@@ -777,19 +777,19 @@ document.getElementById('eventoSalvar').addEventListener('click', async ()=>{
   let eventoId = eventoEditandoId;
   let error;
   if(eventoId){
-    ({ error } = await supabase.from('eventos').update(payload).eq('id', eventoId));
+    ({ error } = await supabaseClient.from('eventos').update(payload).eq('id', eventoId));
   } else {
-    const { data, error: insErr } = await supabase.from('eventos').insert(payload).select().single();
+    const { data, error: insErr } = await supabaseClient.from('eventos').insert(payload).select().single();
     error = insErr;
     if(data) eventoId = data.id;
   }
   if(error){ toast('Erro ao salvar evento'); console.error(error); return; }
 
   // atualiza relação evento_produtos: remove tudo e reinsere selecionados
-  await supabase.from('evento_produtos').delete().eq('evento_id', eventoId);
+  await supabaseClient.from('evento_produtos').delete().eq('evento_id', eventoId);
   if(selecionados.length > 0){
     const rows = selecionados.map(pid => ({ evento_id: eventoId, produto_id: pid }));
-    await supabase.from('evento_produtos').insert(rows);
+    await supabaseClient.from('evento_produtos').insert(rows);
   }
 
   document.getElementById('overlayEvento').classList.remove('open');
@@ -818,7 +818,7 @@ async function abrirDetalheEvento(id){
     obsRow.style.display = 'none';
   }
 
-  const { data: rel } = await supabase.from('evento_produtos').select('produto_id').eq('evento_id', id);
+  const { data: rel } = await supabaseClient.from('evento_produtos').select('produto_id').eq('evento_id', id);
   const ids = (rel||[]).map(x=>x.produto_id);
   const sabores = produtosCache.filter(p => ids.includes(p.id));
 
