@@ -443,8 +443,8 @@
    CONFIGURAÇÃO — preencha com os dados do SEU projeto Supabase
    (Project Settings > API, no painel do Supabase)
    ====================================================================== */
-const SUPABASE_URL = "COLE_AQUI_SUA_URL_SUPABASE";       // ex: https://xxxxx.supabase.co
-const SUPABASE_ANON_KEY = "COLE_AQUI_SUA_ANON_KEY";       // chave "anon public"
+const SUPABASE_URL = "https://mtxiheyfbfwugkdmurzs.supabase.co";       // ex: https://xxxxx.supabase.co
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10eGloZXlmYmZ3dWdrZG11cnpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MTk1ODYsImV4cCI6MjA5ODQ5NTU4Nn0.kHnVPLMVxc9jWEMq8voUiCJqH8tiePzYfA-IUPXOmMs";       // chave "anon public"
 
 /* ====================================================================== */
 
@@ -512,7 +512,14 @@ loginForm.addEventListener('submit', async (e)=>{
   loginBtn.textContent = "Entrar";
 
   if(error){
-    loginError.textContent = "E-mail ou senha incorretos.";
+    console.error('Erro de login:', error);
+    if(error.message === 'Email not confirmed'){
+      loginError.textContent = "E-mail ainda não confirmado. Confira em Authentication → Users se 'Auto Confirm User' foi marcado ao criar o usuário.";
+    } else if(error.message === 'Invalid login credentials'){
+      loginError.textContent = "E-mail ou senha incorretos.";
+    } else {
+      loginError.textContent = "Erro ao entrar: " + error.message;
+    }
     return;
   }
   document.getElementById('loginGate').style.display = 'none';
