@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#241B16">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Florisbela Catering">
+<title>Florisbela Catering — Eventos & Pizzas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --forno:#241B16;
+    --brasa:#C1441E;
+    --brasa-dark:#9c3517;
+    --manjericao:#5B6E3F;
+    --farinha:#F3E9D8;
+    --farinha-alta:#FBF6EC;
+    --tinta:#362A22;
+    --dourado:#D9A441;
+    --linha: rgba(54,42,34,0.14);
+    --sombra: 0 6px 20px rgba(36,27,22,0.12);
+    --raio: 14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--farinha);
+    color:var(--tinta);
+    font-family:'Work Sans', sans-serif;
+    min-height:100vh;
+    padding-bottom:88px;
+  }
+  h1,h2,h3,.display{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    color:var(--forno);
+    margin:0;
+  }
+  .mono{ font-family:'IBM Plex Mono', monospace; letter-spacing:0.01em; }
+  button{ font-family:inherit; cursor:pointer; }
+  input, select, textarea{ font-family:inherit; }
+
+  /* ---------- LOGIN ---------- */
+  #loginGate{
+    position:fixed; inset:0; background:var(--forno);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:22px; z-index:999; padding:24px;
+  }
+  #loginGate .brand{ text-align:center; margin-bottom:6px; }
+  #loginGate .brand .flame{ font-size:36px; }
+  #loginGate .brand h1{ color:var(--farinha-alta); font-size:24px; font-style:italic; }
+  #loginGate .brand p{ color:rgba(243,233,216,0.6); font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; margin-top:4px;}
+  #loginForm{ width:100%; max-width:320px; display:flex; flex-direction:column; gap:12px; }
+  #loginForm label{ font-size:11.5px; font-weight:600; color:rgba(243,233,216,0.6); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px; display:block;}
+  #loginForm input{
+    width:100%; padding:12px 14px; border-radius:10px; border:1px solid rgba(243,233,216,0.2);
+    background:rgba(243,233,216,0.07); color:var(--farinha-alta); font-size:15px;
+  }
+  #loginForm input::placeholder{ color:rgba(243,233,216,0.35); }
+  #loginForm input:focus{ outline:2px solid var(--dourado); outline-offset:1px; }
+  #loginBtn{
+    padding:13px; border-radius:10px; border:none; background:var(--brasa); color:#fff;
+    font-size:14.5px; font-weight:600; margin-top:6px;
+  }
+  #loginBtn:active{ background:var(--brasa-dark); }
+  #loginBtn:disabled{ opacity:0.6; }
+  #loginError{ color:#e8896f; font-family:'IBM Plex Mono',monospace; font-size:12px; min-height:16px; text-align:center; }
+  #loginHint{ color:rgba(243,233,216,0.4); font-size:11.5px; text-align:center; max-width:300px; line-height:1.5; }
+
+  /* ---------- LOGOUT ---------- */
+  .logoutbtn{
+    background:none; border:1px solid var(--linha); border-radius:8px; padding:6px 10px;
+    font-size:11px; color:rgba(54,42,34,0.55); font-family:'IBM Plex Mono',monospace;
+  }
+
+  /* ---------- HEADER ---------- */
+  header{
+    padding:22px 20px 16px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  header .brand{ display:flex; align-items:baseline; gap:8px;}
+  header .brand span.flame{ font-size:20px; }
+  header h1{ font-size:21px; font-style:italic; }
+  header .headRight{ display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+  header .sub{ font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--manjericao); }
+
+  main{ max-width:720px; margin:0 auto; padding:0 16px; }
+
+  /* ---------- TABS ---------- */
+  nav.tabbar{
+    position:fixed; bottom:0; left:0; right:0;
+    background:var(--farinha-alta);
+    border-top:1px solid var(--linha);
+    display:flex; justify-content:center;
+    padding:8px 12px calc(8px + env(safe-area-inset-bottom));
+    z-index:40;
+  }
+  nav.tabbar .inner{ display:flex; gap:8px; width:100%; max-width:480px; }
+  .tabbtn{
+    flex:1; background:none; border:none; padding:8px 4px; border-radius:10px;
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+    color:rgba(54,42,34,0.45); font-size:11px; font-weight:600;
+  }
+  .tabbtn .ic{ font-size:20px; }
+  .tabbtn.active{ color:var(--brasa); }
+
+  .view{ display:none; padding-top:4px; animation:fadeIn .18s ease; }
+  .view.active{ display:block; }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+  .section-label{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--manjericao); margin:20px 0 10px; font-weight:500;
+  }
+  .section-label:first-child{ margin-top:4px; }
+
+  /* ---------- PRODUCT CARDS ---------- */
+  .prodCard{
+    background:var(--farinha-alta); border:1px solid var(--linha); border-radius:var(--raio);
+    padding:14px 16px; margin-bottom:10px; display:flex; justify-content:space-between; gap:10px;
+    box-shadow:var(--sombra);
+  }
+  .prodCard .info{ flex:1; min-width:0; }
+  .prodCard h3{ font-size:16px; font-style:italic; margin-bottom:4px; }
+  .prodCard .ingr{ font-size:12.5px; color:rgba(54,42,34,0.65); line-height:1.5; }
+  .prodCard .actions{ display:flex; flex-direction:column; gap:6px; }
+  .iconbtn{
+    width:30px; height:30px; border-radius:8px; border:1px solid var(--linha);
+    background:transparent; font-size:14px; display:flex; align-items:center; justify-content:center;
+    color:var(--tinta);
+  }
+  .iconbtn.danger{ color:var(--brasa); border-color:rgba(193,68,30,0.3); }
+  .empty{
+    text-align:center; padding:36px 20px; color:rgba(54,42,34,0.45);
+  }
+  .empty .ic{ font-size:30px; display:block; margin-bottom:8px; }
+  .empty .cta{ font-size:13px; }
+
+  /* ---------- EVENT TICKET CARDS (signature element) ---------- */
+  .ticket{
+    position:relative;
+    background:var(--farinha-alta);
+    border-radius:10px;
+    margin-bottom:18px;
+    box-shadow:var(--sombra);
+    overflow:hidden;
+    border:1px solid var(--linha);
+  }
+  .ticket::before{
+    content:"";
+    display:block; height:8px; width:100%;
+    background-image: radial-gradient(circle at 6px 4px, var(--farinha) 4px, transparent 4.5px);
+    background-size:16px 8px;
+    background-position:0 0;
+  }
+  .ticket .body{ padding:4px 18px 16px; }
+  .ticket .row1{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-top:6px;}
+  .ticket h3{ font-size:18px; font-style:italic; }
+  .ticket .stamp{
+    font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:0.06em; text-transform:uppercase;
+    border:1.5px solid var(--manjericao); color:var(--manjericao); border-radius:20px; padding:3px 9px;
+    transform:rotate(-3deg); white-space:nowrap;
+  }
+  .ticket .stamp.passado{ border-color:rgba(54,42,34,0.3); color:rgba(54,42,34,0.4); }
+  .ticket .meta{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--tinta); margin-top:10px;
+    display:grid; grid-template-columns:auto 1fr; gap:4px 10px;
+  }
+  .ticket .meta .k{ color:rgba(54,42,34,0.45); }
+  .ticket .dash{ border-top:1px dashed var(--linha); margin:12px 0; }
+  .ticket .count{ font-size:12.5px; color:rgba(54,42,34,0.6); }
+  .ticket .tapHint{ font-family:'IBM Plex Mono',monospace; font-size:10px; color:rgba(54,42,34,0.35); margin-top:10px; text-align:right;}
+
+  /* ---------- FAB ---------- */
+  .fab{
+    position:fixed; right:20px; bottom:96px; z-index:41;
+    width:56px; height:56px; border-radius:50%; border:none;
+    background:var(--brasa); color:var(--farinha-alta); font-size:26px;
+    box-shadow:0 8px 22px rgba(193,68,30,0.4);
+  }
+  .fab:active{ background:var(--brasa-dark); }
+
+  /* ---------- MODAL / SHEET ---------- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(36,27,22,0.5); z-index:60;
+    display:none; align-items:flex-end; justify-content:center;
+  }
+  .overlay.open{ display:flex; }
+  .sheet{
+    background:var(--farinha-alta); width:100%; max-width:560px;
+    border-radius:20px 20px 0 0; padding:20px 20px calc(20px + env(safe-area-inset-bottom));
+    max-height:90vh; overflow-y:auto;
+    animation:slideUp .2s ease;
+  }
+  @media (min-width:700px){
+    .overlay{ align-items:center; }
+    .sheet{ border-radius:20px; max-height:85vh; }
+  }
+  @keyframes slideUp{ from{transform:translateY(24px); opacity:0;} to{transform:translateY(0); opacity:1;} }
+  .sheet h2{ font-size:20px; font-style:italic; margin-bottom:16px; }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:11.5px; font-weight:600; color:rgba(54,42,34,0.6); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;}
+  .field input, .field select, .field textarea{
+    width:100%; padding:11px 12px; border-radius:10px; border:1px solid var(--linha);
+    background:var(--farinha); font-size:15px; color:var(--tinta);
+  }
+  .field textarea{ min-height:80px; resize:vertical; font-family:'IBM Plex Mono',monospace; font-size:13px;}
+  .field .hint{ font-size:11px; color:rgba(54,42,34,0.4); margin-top:4px; }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .chipgroup{ display:flex; flex-wrap:wrap; gap:8px; }
+  .chip{
+    padding:9px 14px; border-radius:20px; border:1px solid var(--linha); background:var(--farinha);
+    font-size:13px; display:flex; align-items:center; gap:6px;
+  }
+  .chip.sel{ background:var(--brasa); border-color:var(--brasa); color:#fff; }
+  .catblock{ margin-bottom:14px; }
+  .catblock .catname{ font-size:12px; font-weight:600; color:var(--manjericao); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;}
+  .sheet-actions{ display:flex; gap:10px; margin-top:18px; }
+  .btn{
+    flex:1; padding:13px; border-radius:12px; border:none; font-size:14.5px; font-weight:600;
+  }
+  .btn.primary{ background:var(--brasa); color:#fff; }
+  .btn.primary:active{ background:var(--brasa-dark); }
+  .btn.ghost{ background:transparent; border:1px solid var(--linha); color:var(--tinta); }
+
+  /* ---------- EVENT DETAIL PAGE ---------- */
+  #eventoDetalhe{
+    position:fixed; inset:0; background:var(--farinha); z-index:70;
+    display:none; flex-direction:column;
+  }
+  #eventoDetalhe.open{ display:flex; }
+  .detalhe-topbar{
+    display:flex; align-items:center; gap:12px; padding:18px 16px;
+    border-bottom:1px solid var(--linha); background:var(--farinha-alta);
+  }
+  .backbtn{ background:none; border:none; font-size:20px; color:var(--tinta); }
+  .detalhe-topbar h2{ font-size:17px; font-style:italic; flex:1; }
+  .detalhe-scroll{ flex:1; overflow-y:auto; padding:20px 18px 100px; max-width:720px; margin:0 auto; width:100%; }
+  .detalhe-card{
+    background:var(--farinha-alta); border:1px solid var(--linha); border-radius:var(--raio);
+    padding:18px; margin-bottom:18px; box-shadow:var(--sombra);
+  }
+  .kv{ display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--linha); font-size:14px;}
+  .kv:last-child{ border-bottom:none; }
+  .kv .k{ color:rgba(54,42,34,0.5); font-family:'IBM Plex Mono',monospace; font-size:12px; text-transform:uppercase; letter-spacing:0.04em;}
+  .kv .v{ font-weight:500; text-align:right; }
+  .sabor-item{ padding:10px 0; border-bottom:1px solid var(--linha); }
+  .sabor-item:last-child{ border-bottom:none; }
+  .sabor-item .nome{ font-style:italic; font-size:15px; }
+  .sabor-item .cat{ font-size:10.5px; color:var(--manjericao); text-transform:uppercase; letter-spacing:0.05em; font-weight:600; }
+  .detalhe-actions{ display:flex; flex-direction:column; gap:10px; margin-top:4px; }
+  .checklist-item{
+    padding:12px 0; border-bottom:1px solid var(--linha);
+  }
+  .checklist-item:last-child{ border-bottom:none; }
+  .checklist-item .ci-top{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom:8px;}
+  .checklist-item .ci-name{ font-family:'IBM Plex Mono',monospace; font-size:14px; }
+  .checklist-item.checked-all .ci-name{ text-decoration:line-through; opacity:0.45; }
+  .checklist-item .qtd{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:rgba(54,42,34,0.4); white-space:nowrap; text-align:right;}
+  .ci-checks{ display:flex; gap:18px; flex-wrap:wrap; }
+  .ci-check{ display:flex; align-items:center; gap:6px; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:rgba(54,42,34,0.75); }
+  .ci-check input[type=checkbox]{ width:17px; height:17px; accent-color:var(--brasa); flex-shrink:0; }
+  .ci-check.separado input[type=checkbox]{ accent-color:var(--manjericao); }
+
+  .toast{
+    position:fixed; bottom:96px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--forno); color:var(--farinha-alta); padding:11px 18px; border-radius:10px;
+    font-size:13px; z-index:200; opacity:0; transition:all .25s; pointer-events:none;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  .configNote{
+    background:rgba(193,68,30,0.08); border:1px solid rgba(193,68,30,0.25); border-radius:var(--raio);
+    padding:16px; margin:16px; font-size:13px; line-height:1.6;
+  }
+  .configNote code{ background:rgba(54,42,34,0.08); padding:2px 5px; border-radius:4px; font-size:12px;}
+</style>
+</head>
+<body>
+
+<!-- ======================= LOGIN ======================= -->
+<div id="loginGate">
+  <div class="brand">
+    <div class="flame">🔥</div>
+    <h1>Florisbela Catering</h1>
+    <p>Eventos &amp; Pizzas</p>
+  </div>
+  <form id="loginForm">
+    <div>
+      <label for="loginEmail">E-mail</label>
+      <input type="email" id="loginEmail" placeholder="voce@email.com" autocomplete="username" required>
+    </div>
+    <div>
+      <label for="loginSenha">Senha</label>
+      <input type="password" id="loginSenha" placeholder="••••••••" autocomplete="current-password" required>
+    </div>
+    <div id="loginError"></div>
+    <button type="submit" id="loginBtn">Entrar</button>
+  </form>
+  <div id="loginHint">O acesso é feito com uma conta criada previamente no painel do Supabase (Authentication → Users). Não há cadastro público nesta tela.</div>
+</div>
+
+<!-- ======================= APP ======================= -->
+<div id="app" style="display:none;">
+  <header>
+    <div class="brand">
+      <span class="flame">🔥</span>
+      <h1>Florisbela Catering</h1>
+    </div>
+    <div class="headRight">
+      <div class="sub">Eventos &amp; Pizzas</div>
+      <button class="logoutbtn" id="logoutBtn">sair</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ---- VIEW: PRODUTOS ---- -->
+    <div class="view active" id="view-produtos">
+      <div id="produtosLista"></div>
+    </div>
+
+    <!-- ---- VIEW: EVENTOS ---- -->
+    <div class="view" id="view-eventos">
+      <div id="eventosLista"></div>
+    </div>
+
+    <!-- ---- VIEW: UTENSÍLIOS/EQUIPAMENTOS ---- -->
+    <div class="view" id="view-utensilios">
+      <div id="utensiliosLista"></div>
+    </div>
+  </main>
+
+  <button class="fab" id="fabAdd">+</button>
+
+  <nav class="tabbar">
+    <div class="inner">
+      <button class="tabbtn active" data-view="produtos"><span class="ic">🧾</span>Produtos</button>
+      <button class="tabbtn" data-view="eventos"><span class="ic">📅</span>Eventos</button>
+      <button class="tabbtn" data-view="utensilios"><span class="ic">🧰</span>Utensílios</button>
+    </div>
+  </nav>
+</div>
+
+<!-- ======================= MODAL: PRODUTO ======================= -->
+<div class="overlay" id="overlayProduto">
+  <div class="sheet">
+    <h2 id="produtoModalTitulo">Novo produto</h2>
+    <input type="hidden" id="produtoId">
+    <div class="field">
+      <label>Nome *</label>
+      <input type="text" id="produtoNome" placeholder="Ex: Margherita">
+    </div>
+    <div class="field">
+      <label>Categoria *</label>
+      <select id="produtoCategoria">
+        <option value="entrada">Entrada</option>
+        <option value="salgada">Pizza Salgada</option>
+        <option value="doce">Pizza Doce</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Ingredientes (um por linha)</label>
+      <textarea id="produtoIngredientes" placeholder="Molho de tomate pelatti&#10;Parmesão&#10;Mussarela&#10;Manjericão"></textarea>
+      <div class="hint">Cada linha vira um item na lista de compras/checklist do evento.</div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn ghost" id="produtoCancelar">Cancelar</button>
+      <button class="btn primary" id="produtoSalvar">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= MODAL: UTENSÍLIO/EQUIPAMENTO ======================= -->
+<div class="overlay" id="overlayUtensilio">
+  <div class="sheet">
+    <h2 id="utensilioModalTitulo">Novo utensílio/equipamento</h2>
+    <input type="hidden" id="utensilioId">
+    <div class="field">
+      <label>Nome *</label>
+      <input type="text" id="utensilioNome" placeholder="Ex: Pá de pizza">
+    </div>
+    <div class="field">
+      <label>Observações</label>
+      <textarea id="utensilioObs" style="font-family:'Work Sans',sans-serif; min-height:56px;" placeholder="Quantidade, onde fica guardado, detalhes..."></textarea>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn ghost" id="utensilioCancelar">Cancelar</button>
+      <button class="btn primary" id="utensilioSalvar">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= MODAL: EVENTO ======================= -->
+<div class="overlay" id="overlayEvento">
+  <div class="sheet">
+    <h2 id="eventoModalTitulo">Novo evento</h2>
+    <input type="hidden" id="eventoId">
+    <div class="field">
+      <label>Nome do contratante *</label>
+      <input type="text" id="eventoNome" placeholder="Ex: Henrique">
+    </div>
+    <div class="field">
+      <label>Telefone</label>
+      <input type="tel" id="eventoTelefone" placeholder="(11) 90000-0000">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Data *</label>
+        <input type="date" id="eventoData">
+      </div>
+      <div class="field">
+        <label>Hora</label>
+        <input type="time" id="eventoHora">
+      </div>
+    </div>
+    <div class="field">
+      <label>Local</label>
+      <input type="text" id="eventoLocal" placeholder="Ex: Chácara do aniversariante">
+    </div>
+    <div class="field">
+      <label>Observações</label>
+      <textarea id="eventoObs" style="font-family:'Work Sans',sans-serif; min-height:56px;" placeholder="Detalhes extras do evento"></textarea>
+    </div>
+    <div class="field">
+      <label>Sabores / produtos do evento</label>
+      <div id="eventoProdutosSeletor"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn ghost" id="eventoCancelar">Cancelar</button>
+      <button class="btn primary" id="eventoSalvar">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= TELA: DETALHE DO EVENTO ======================= -->
+<div id="eventoDetalhe">
+  <div class="detalhe-topbar">
+    <button class="backbtn" id="detalheVoltar">←</button>
+    <h2 id="detalheTitulo">Evento</h2>
+  </div>
+  <div class="detalhe-scroll">
+    <div class="detalhe-card">
+      <div class="kv"><span class="k">Contratante</span><span class="v" id="dContratante"></span></div>
+      <div class="kv"><span class="k">Telefone</span><span class="v" id="dTelefone"></span></div>
+      <div class="kv"><span class="k">Data</span><span class="v" id="dData"></span></div>
+      <div class="kv"><span class="k">Hora</span><span class="v" id="dHora"></span></div>
+      <div class="kv"><span class="k">Local</span><span class="v" id="dLocal"></span></div>
+      <div class="kv" id="dObsRow"><span class="k">Obs.</span><span class="v" id="dObs"></span></div>
+    </div>
+
+    <div class="section-label">Sabores selecionados</div>
+    <div class="detalhe-card" id="dSaboresLista"></div>
+
+    <div class="detalhe-actions">
+      <button class="btn ghost" id="detalheEditar">✏️ Editar sabores</button>
+
+      <button class="btn primary" id="detalheChecklistIngredientes">📋 Checklist de Ingredientes</button>
+      <div id="checklistIngredientesArea" style="display:none;">
+        <div class="section-label">Checklist de ingredientes</div>
+        <div class="detalhe-card" id="checklistIngredientesLista"></div>
+      </div>
+
+      <button class="btn primary" id="detalheChecklistUtensilios">🧰 Checklist de Utensílios/Equipamentos</button>
+      <div id="checklistUtensiliosArea" style="display:none;">
+        <div class="section-label">Checklist de utensílios/equipamentos</div>
+        <div class="detalhe-card" id="checklistUtensiliosLista"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ======================================================================
+   CONFIGURAÇÃO — preencha com os dados do SEU projeto Supabase
+   (Project Settings > API, no painel do Supabase)
+   ====================================================================== */
+const SUPABASE_URL = "https://mtxiheyfbfwugkdmurzs.supabase.co";       // ex: https://xxxxx.supabase.co
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10eGloZXlmYmZ3dWdrZG11cnpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MTk1ODYsImV4cCI6MjA5ODQ5NTU4Nn0.kHnVPLMVxc9jWEMq8voUiCJqH8tiePzYfA-IUPXOmMs";       // chave "anon public"
+
+/* ====================================================================== */
+
+let supabaseClient = null;
+let configOk = SUPABASE_URL.startsWith("http") && SUPABASE_ANON_KEY.length > 10;
+if (configOk) {
+  try{
+    if(!window.supabase) throw new Error("Biblioteca do Supabase não carregou (CDN bloqueado ou sem internet).");
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } catch(err){
+    console.error(err);
+    configOk = false;
+    document.addEventListener('DOMContentLoaded', ()=>{
+      const le = document.getElementById('loginError');
+      if(le) le.textContent = "Não foi possível carregar o app: " + err.message;
+    });
+  }
+}
+
+const CATS = { entrada: "Entradas", salgada: "Pizzas Salgadas", doce: "Pizzas Doces" };
+let produtosCache = [];
+let utensiliosCache = [];
+let eventosCache = [];
+let eventoAtualId = null;
+let produtoEditandoId = null;
+let utensilioEditandoId = null;
+let eventoEditandoId = null;
+
+/* ---------------- helpers ---------------- */
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function fmtData(d){
+  if(!d) return "—";
+  const [y,m,day] = d.split("-");
+  return `${day}/${m}/${y}`;
+}
+function fmtHora(h){
+  if(!h) return "—";
+  return h.slice(0,5);
+}
+
+/* ---------------- LOGIN (Supabase Auth) ---------------- */
+const loginForm = document.getElementById('loginForm');
+const loginBtn = document.getElementById('loginBtn');
+const loginError = document.getElementById('loginError');
+
+async function verificarSessao(){
+  if(!configOk){
+    document.getElementById('loginGate').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    boot();
+    return;
+  }
+  const { data } = await supabaseClient.auth.getSession();
+  if(data.session){
+    document.getElementById('loginGate').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    boot();
+  }
+}
+
+loginForm.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  loginError.textContent = "";
+  const email = document.getElementById('loginEmail').value.trim();
+  const senha = document.getElementById('loginSenha').value;
+  loginBtn.disabled = true;
+  loginBtn.textContent = "Entrando...";
+
+  try{
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password: senha });
+
+    if(error){
+      console.error('Erro de login:', error);
+      if(error.message === 'Email not confirmed'){
+        loginError.textContent = "E-mail ainda não confirmado. Confira em Authentication → Users se 'Auto Confirm User' foi marcado ao criar o usuário.";
+      } else if(error.message === 'Invalid login credentials'){
+        loginError.textContent = "E-mail ou senha incorretos.";
+      } else {
+        loginError.textContent = "Erro ao entrar: " + error.message;
+      }
+      return;
+    }
+    document.getElementById('loginGate').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    boot();
+  } catch(err){
+    console.error('Falha inesperada no login:', err);
+    loginError.textContent = "Não foi possível conectar ao servidor. Verifique sua internet ou tente novamente (detalhes no console: F12).";
+  } finally {
+    loginBtn.disabled = false;
+    loginBtn.textContent = "Entrar";
+  }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+  await supabaseClient.auth.signOut();
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginGate').style.display = 'flex';
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginSenha').value = '';
+});
+
+verificarSessao();
+
+/* ---------------- BOOT ---------------- */
+async function boot(){
+  if(!configOk){
+    document.querySelector('main').innerHTML = `
+      <div class="configNote">
+        <strong>Configuração pendente.</strong><br><br>
+        Este app ainda não está conectado a um banco de dados. Abra o arquivo <code>index.html</code>,
+
+        encontre o bloco <code>CONFIGURAÇÃO</code> no início do &lt;script&gt; e cole a URL e a
+        chave <code>anon public</code> do seu projeto Supabase (veja o README).
+      </div>`;
+    document.querySelector('.fab').style.display = 'none';
+    document.querySelector('.tabbar').style.display = 'none';
+    return;
+  }
+  await carregarProdutos();
+  await carregarUtensilios();
+  await carregarEventos();
+}
+
+/* ---------------- TABS ---------------- */
+document.querySelectorAll('.tabbtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tabbtn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    document.getElementById('fabAdd').dataset.contexto = btn.dataset.view;
+  });
+});
+document.getElementById('fabAdd').dataset.contexto = 'produtos';
+document.getElementById('fabAdd').addEventListener('click', ()=>{
+  const ctx = document.getElementById('fabAdd').dataset.contexto;
+  if(ctx === 'produtos') abrirModalProduto();
+  else if(ctx === 'utensilios') abrirModalUtensilio();
+  else abrirModalEvento();
+});
+
+/* ================= PRODUTOS ================= */
+async function carregarProdutos(){
+  const { data, error } = await supabaseClient.from('produtos').select('*').eq('ativo', true).order('nome');
+  if(error){ toast('Erro ao carregar produtos'); console.error(error); return; }
+  produtosCache = data || [];
+  renderProdutos();
+}
+
+function renderProdutos(){
+  const wrap = document.getElementById('produtosLista');
+  if(produtosCache.length === 0){
+    wrap.innerHTML = `<div class="empty"><span class="ic">🍕</span>Nenhum produto cadastrado ainda.<div class="cta">Toque em "+" para adicionar o primeiro sabor.</div></div>`;
+    return;
+  }
+  let html = "";
+  ['entrada','salgada','doce'].forEach(cat=>{
+    const itens = produtosCache.filter(p=>p.categoria===cat);
+    if(itens.length===0) return;
+    html += `<div class="section-label">${CATS[cat]}</div>`;
+    itens.forEach(p=>{
+      const ingr = (p.ingredientes||[]).join(', ');
+      html += `
+        <div class="prodCard">
+          <div class="info">
+            <h3>${escapeHtml(p.nome)}</h3>
+            <div class="ingr">${escapeHtml(ingr) || '<em>sem ingredientes listados</em>'}</div>
+          </div>
+          <div class="actions">
+            <button class="iconbtn" onclick="abrirModalProduto('${p.id}')">✏️</button>
+            <button class="iconbtn danger" onclick="excluirProduto('${p.id}')">🗑️</button>
+          </div>
+        </div>`;
+    });
+  });
+  wrap.innerHTML = html;
+}
+
+function escapeHtml(s){
+  return (s||"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function abrirModalProduto(id){
+  produtoEditandoId = id || null;
+  const overlay = document.getElementById('overlayProduto');
+  document.getElementById('produtoModalTitulo').textContent = id ? 'Editar produto' : 'Novo produto';
+  if(id){
+    const p = produtosCache.find(x=>x.id===id);
+    document.getElementById('produtoNome').value = p.nome;
+    document.getElementById('produtoCategoria').value = p.categoria;
+    document.getElementById('produtoIngredientes').value = (p.ingredientes||[]).join('\n');
+  } else {
+    document.getElementById('produtoNome').value = '';
+    document.getElementById('produtoCategoria').value = 'salgada';
+    document.getElementById('produtoIngredientes').value = '';
+  }
+  overlay.classList.add('open');
+}
+document.getElementById('produtoCancelar').addEventListener('click', ()=>{
+  document.getElementById('overlayProduto').classList.remove('open');
+});
+document.getElementById('produtoSalvar').addEventListener('click', async ()=>{
+  const nome = document.getElementById('produtoNome').value.trim();
+  if(!nome){ toast('Informe o nome do produto'); return; }
+  const categoria = document.getElementById('produtoCategoria').value;
+  const ingredientes = document.getElementById('produtoIngredientes').value
+    .split('\n').map(s=>s.trim()).filter(Boolean);
+
+  let error;
+  if(produtoEditandoId){
+    ({ error } = await supabaseClient.from('produtos').update({ nome, categoria, ingredientes }).eq('id', produtoEditandoId));
+  } else {
+    ({ error } = await supabaseClient.from('produtos').insert({ nome, categoria, ingredientes }));
+  }
+  if(error){ toast('Erro ao salvar'); console.error(error); return; }
+  document.getElementById('overlayProduto').classList.remove('open');
+  toast('Produto salvo');
+  await carregarProdutos();
+});
+async function excluirProduto(id){
+  if(!confirm('Excluir este produto?')) return;
+  const { error } = await supabaseClient.from('produtos').update({ ativo:false }).eq('id', id);
+  if(error){ toast('Erro ao excluir'); return; }
+  toast('Produto excluído');
+  await carregarProdutos();
+}
+
+/* ================= UTENSÍLIOS / EQUIPAMENTOS ================= */
+async function carregarUtensilios(){
+  const { data, error } = await supabaseClient.from('utensilios').select('*').eq('ativo', true).order('nome');
+  if(error){ toast('Erro ao carregar utensílios'); console.error(error); return; }
+  utensiliosCache = data || [];
+  renderUtensilios();
+}
+
+function renderUtensilios(){
+  const wrap = document.getElementById('utensiliosLista');
+  if(utensiliosCache.length === 0){
+    wrap.innerHTML = `<div class="empty"><span class="ic">🧰</span>Nenhum utensílio/equipamento cadastrado ainda.<div class="cta">Toque em "+" para adicionar o primeiro.</div></div>`;
+    return;
+  }
+  wrap.innerHTML = utensiliosCache.map(u=>`
+    <div class="prodCard">
+      <div class="info">
+        <h3>${escapeHtml(u.nome)}</h3>
+        <div class="ingr">${escapeHtml(u.observacoes||'') || '<em>sem observações</em>'}</div>
+      </div>
+      <div class="actions">
+        <button class="iconbtn" onclick="abrirModalUtensilio('${u.id}')">✏️</button>
+        <button class="iconbtn danger" onclick="excluirUtensilio('${u.id}')">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+
+function abrirModalUtensilio(id){
+  utensilioEditandoId = id || null;
+  document.getElementById('utensilioModalTitulo').textContent = id ? 'Editar utensílio/equipamento' : 'Novo utensílio/equipamento';
+  if(id){
+    const u = utensiliosCache.find(x=>x.id===id);
+    document.getElementById('utensilioNome').value = u.nome;
+    document.getElementById('utensilioObs').value = u.observacoes || '';
+  } else {
+    document.getElementById('utensilioNome').value = '';
+    document.getElementById('utensilioObs').value = '';
+  }
+  document.getElementById('overlayUtensilio').classList.add('open');
+}
+document.getElementById('utensilioCancelar').addEventListener('click', ()=>{
+  document.getElementById('overlayUtensilio').classList.remove('open');
+});
+document.getElementById('utensilioSalvar').addEventListener('click', async ()=>{
+  const nome = document.getElementById('utensilioNome').value.trim();
+  if(!nome){ toast('Informe o nome do item'); return; }
+  const observacoes = document.getElementById('utensilioObs').value.trim();
+
+  let error;
+  if(utensilioEditandoId){
+    ({ error } = await supabaseClient.from('utensilios').update({ nome, observacoes }).eq('id', utensilioEditandoId));
+  } else {
+    ({ error } = await supabaseClient.from('utensilios').insert({ nome, observacoes }));
+  }
+  if(error){ toast('Erro ao salvar'); console.error(error); return; }
+  document.getElementById('overlayUtensilio').classList.remove('open');
+  toast('Item salvo');
+  await carregarUtensilios();
+});
+async function excluirUtensilio(id){
+  if(!confirm('Excluir este item?')) return;
+  const { error } = await supabaseClient.from('utensilios').update({ ativo:false }).eq('id', id);
+  if(error){ toast('Erro ao excluir'); return; }
+  toast('Item excluído');
+  await carregarUtensilios();
+}
+
+/* ================= EVENTOS ================= */
+async function carregarEventos(){
+  const { data, error } = await supabaseClient.from('eventos').select('*').order('data_evento', { ascending:true });
+  if(error){ toast('Erro ao carregar eventos'); console.error(error); return; }
+  eventosCache = data || [];
+  renderEventos();
+}
+
+function renderEventos(){
+  const wrap = document.getElementById('eventosLista');
+  if(eventosCache.length === 0){
+    wrap.innerHTML = `<div class="empty"><span class="ic">📅</span>Nenhum evento cadastrado ainda.<div class="cta">Toque em "+" para criar o primeiro.</div></div>`;
+    return;
+  }
+  const hoje = new Date().toISOString().slice(0,10);
+  wrap.innerHTML = eventosCache.map(ev=>{
+    const passado = ev.data_evento < hoje;
+    return `
+    <div class="ticket" onclick="abrirDetalheEvento('${ev.id}')">
+      <div class="body">
+        <div class="row1">
+          <h3>${escapeHtml(ev.nome_contratante)}</h3>
+          <span class="stamp ${passado?'passado':''}">${passado?'realizado':'agendado'}</span>
+        </div>
+        <div class="meta">
+          <span class="k">data</span><span>${fmtData(ev.data_evento)} ${ev.hora_evento?('· '+fmtHora(ev.hora_evento)):''}</span>
+          <span class="k">local</span><span>${escapeHtml(ev.local)||'—'}</span>
+        </div>
+        <div class="dash"></div>
+        <div class="tapHint">toque para ver detalhes →</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderSeletorProdutos(selecionados){
+  const wrap = document.getElementById('eventoProdutosSeletor');
+  if(produtosCache.length === 0){
+    wrap.innerHTML = `<div class="hint">Cadastre produtos na aba "Produtos" primeiro.</div>`;
+    return;
+  }
+  let html = '';
+  ['entrada','salgada','doce'].forEach(cat=>{
+    const itens = produtosCache.filter(p=>p.categoria===cat);
+    if(itens.length===0) return;
+    html += `<div class="catblock"><div class="catname">${CATS[cat]}</div><div class="chipgroup">`;
+    itens.forEach(p=>{
+      const sel = selecionados.includes(p.id) ? 'sel' : '';
+      html += `<button type="button" class="chip ${sel}" data-pid="${p.id}" onclick="toggleChip(this)">${escapeHtml(p.nome)}</button>`;
+    });
+    html += `</div></div>`;
+  });
+  wrap.innerHTML = html;
+}
+function toggleChip(el){ el.classList.toggle('sel'); }
+
+function abrirModalEvento(id){
+  eventoEditandoId = id || null;
+  document.getElementById('eventoModalTitulo').textContent = id ? 'Editar evento' : 'Novo evento';
+  if(id){
+    const ev = eventosCache.find(x=>x.id===id);
+    document.getElementById('eventoNome').value = ev.nome_contratante;
+    document.getElementById('eventoTelefone').value = ev.telefone || '';
+    document.getElementById('eventoData').value = ev.data_evento;
+    document.getElementById('eventoHora').value = ev.hora_evento || '';
+    document.getElementById('eventoLocal').value = ev.local || '';
+    document.getElementById('eventoObs').value = ev.observacoes || '';
+    supabaseClient.from('evento_produtos').select('produto_id').eq('evento_id', id).then(({data})=>{
+      renderSeletorProdutos((data||[]).map(x=>x.produto_id));
+    });
+  } else {
+    document.getElementById('eventoNome').value = '';
+    document.getElementById('eventoTelefone').value = '';
+    document.getElementById('eventoData').value = '';
+    document.getElementById('eventoHora').value = '';
+    document.getElementById('eventoLocal').value = '';
+    document.getElementById('eventoObs').value = '';
+    renderSeletorProdutos([]);
+  }
+  document.getElementById('overlayEvento').classList.add('open');
+}
+document.getElementById('eventoCancelar').addEventListener('click', ()=>{
+  document.getElementById('overlayEvento').classList.remove('open');
+});
+document.getElementById('eventoSalvar').addEventListener('click', async ()=>{
+  const nome_contratante = document.getElementById('eventoNome').value.trim();
+  const data_evento = document.getElementById('eventoData').value;
+  if(!nome_contratante){ toast('Informe o nome do contratante'); return; }
+  if(!data_evento){ toast('Informe a data do evento'); return; }
+
+  const payload = {
+    nome_contratante,
+    telefone: document.getElementById('eventoTelefone').value.trim(),
+    data_evento,
+    hora_evento: document.getElementById('eventoHora').value || null,
+    local: document.getElementById('eventoLocal').value.trim(),
+    observacoes: document.getElementById('eventoObs').value.trim(),
+  };
+  const selecionados = Array.from(document.querySelectorAll('#eventoProdutosSeletor .chip.sel')).map(c=>c.dataset.pid);
+
+  let eventoId = eventoEditandoId;
+  let error;
+  if(eventoId){
+    ({ error } = await supabaseClient.from('eventos').update(payload).eq('id', eventoId));
+  } else {
+    const { data, error: insErr } = await supabaseClient.from('eventos').insert(payload).select().single();
+    error = insErr;
+    if(data) eventoId = data.id;
+  }
+  if(error){ toast('Erro ao salvar evento'); console.error(error); return; }
+
+  // atualiza relação evento_produtos: remove tudo e reinsere selecionados
+  await supabaseClient.from('evento_produtos').delete().eq('evento_id', eventoId);
+  if(selecionados.length > 0){
+    const rows = selecionados.map(pid => ({ evento_id: eventoId, produto_id: pid }));
+    await supabaseClient.from('evento_produtos').insert(rows);
+  }
+
+  document.getElementById('overlayEvento').classList.remove('open');
+  toast('Evento salvo');
+  await carregarEventos();
+  if(eventoAtualId === eventoId){
+    abrirDetalheEvento(eventoId);
+  }
+});
+
+/* ================= DETALHE DO EVENTO ================= */
+let eventoAtualChecklistIngredientes = {};
+let eventoAtualChecklistUtensilios = {};
+
+// Converte formato antigo (chave: true/false) para o novo formato
+// (chave: {comprado, separado}), sem perder o que já estava marcado.
+function normalizeChecklist(raw){
+  const out = {};
+  Object.entries(raw || {}).forEach(([k, v])=>{
+    if(typeof v === 'boolean'){
+      out[k] = { comprado: v, separado: false };
+    } else if(v && typeof v === 'object'){
+      out[k] = { comprado: !!v.comprado, separado: !!v.separado };
+    }
+  });
+  return out;
+}
+
+function renderChecklistItemHtml(chave, estado, badgeRaw, lista){
+  const comprado = !!estado.comprado;
+  const separado = !!estado.separado;
+  const completo = comprado && separado;
+  const keyAttr = escapeHtml(chave);
+  const badge = badgeRaw ? escapeHtml(badgeRaw) : '';
+  return `
+    <div class="checklist-item ${completo?'checked-all':''}">
+      <div class="ci-top">
+        <span class="ci-name">${escapeHtml(chave)}</span>
+        ${badge ? `<span class="qtd">${badge}</span>` : ''}
+      </div>
+      <div class="ci-checks">
+        <label class="ci-check">
+          <input type="checkbox" data-key="${keyAttr}" data-tipo="comprado" data-lista="${lista}" ${comprado?'checked':''} onchange="onChecklistToggle(this)">
+          Comprado
+        </label>
+        <label class="ci-check separado">
+          <input type="checkbox" data-key="${keyAttr}" data-tipo="separado" data-lista="${lista}" ${separado?'checked':''} onchange="onChecklistToggle(this)">
+          Separado / no carro
+        </label>
+      </div>
+    </div>`;
+}
+
+async function onChecklistToggle(checkbox){
+  const key = checkbox.dataset.key;
+  const tipo = checkbox.dataset.tipo;
+  const lista = checkbox.dataset.lista;
+  const marcado = checkbox.checked;
+
+  const estadoObj = lista === 'ingredientes' ? eventoAtualChecklistIngredientes : eventoAtualChecklistUtensilios;
+  if(!estadoObj[key]) estadoObj[key] = { comprado:false, separado:false };
+  estadoObj[key][tipo] = marcado;
+
+  const item = checkbox.closest('.checklist-item');
+  const completo = estadoObj[key].comprado && estadoObj[key].separado;
+  item.classList.toggle('checked-all', completo);
+
+  const coluna = lista === 'ingredientes' ? 'checklist' : 'checklist_utensilios';
+  const { error } = await supabaseClient.from('eventos')
+    .update({ [coluna]: estadoObj })
+    .eq('id', eventoAtualId);
+
+  if(error){
+    console.error('Erro ao salvar checklist:', error);
+    toast('Não foi possível salvar. Tente novamente.');
+    return;
+  }
+  const evCache = eventosCache.find(x=>x.id===eventoAtualId);
+  if(evCache) evCache[coluna] = { ...estadoObj };
+}
+
+async function abrirDetalheEvento(id){
+  eventoAtualId = id;
+  const ev = eventosCache.find(x=>x.id===id);
+  eventoAtualChecklistIngredientes = normalizeChecklist(ev.checklist);
+  eventoAtualChecklistUtensilios = normalizeChecklist(ev.checklist_utensilios);
+  document.getElementById('detalheTitulo').textContent = ev.nome_contratante;
+  document.getElementById('dContratante').textContent = ev.nome_contratante;
+  document.getElementById('dTelefone').textContent = ev.telefone || '—';
+  document.getElementById('dData').textContent = fmtData(ev.data_evento);
+  document.getElementById('dHora').textContent = fmtHora(ev.hora_evento);
+  document.getElementById('dLocal').textContent = ev.local || '—';
+  const obsRow = document.getElementById('dObsRow');
+  if(ev.observacoes){
+    obsRow.style.display = 'flex';
+    document.getElementById('dObs').textContent = ev.observacoes;
+  } else {
+    obsRow.style.display = 'none';
+  }
+
+  const { data: rel } = await supabaseClient.from('evento_produtos').select('produto_id').eq('evento_id', id);
+  const ids = (rel||[]).map(x=>x.produto_id);
+  const sabores = produtosCache.filter(p => ids.includes(p.id));
+
+  const listaWrap = document.getElementById('dSaboresLista');
+  if(sabores.length===0){
+    listaWrap.innerHTML = `<div class="hint">Nenhum sabor selecionado ainda.</div>`;
+  } else {
+    listaWrap.innerHTML = sabores.map(p=>`
+      <div class="sabor-item">
+        <div class="cat">${CATS[p.categoria]}</div>
+        <div class="nome">${escapeHtml(p.nome)}</div>
+      </div>`).join('');
+  }
+
+  document.getElementById('checklistIngredientesArea').style.display = 'none';
+  document.getElementById('detalheChecklistIngredientes').textContent = '📋 Checklist de Ingredientes';
+  document.getElementById('checklistUtensiliosArea').style.display = 'none';
+  document.getElementById('detalheChecklistUtensilios').textContent = '🧰 Checklist de Utensílios/Equipamentos';
+
+  document.getElementById('eventoDetalhe').classList.add('open');
+  document.getElementById('eventoDetalhe').dataset.saborIds = JSON.stringify(ids);
+}
+document.getElementById('detalheVoltar').addEventListener('click', ()=>{
+  document.getElementById('eventoDetalhe').classList.remove('open');
+});
+document.getElementById('detalheEditar').addEventListener('click', ()=>{
+  document.getElementById('eventoDetalhe').classList.remove('open');
+  abrirModalEvento(eventoAtualId);
+});
+
+document.getElementById('detalheChecklistIngredientes').addEventListener('click', function(){
+  const area = document.getElementById('checklistIngredientesArea');
+  const jaVisivel = area.style.display === 'block';
+  if(jaVisivel){
+    area.style.display = 'none';
+    this.textContent = '📋 Checklist de Ingredientes';
+    return;
+  }
+
+  const ids = JSON.parse(document.getElementById('eventoDetalhe').dataset.saborIds || '[]');
+  const sabores = produtosCache.filter(p => ids.includes(p.id));
+
+  const contagem = {};
+  sabores.forEach(p=>{
+    (p.ingredientes||[]).forEach(ing=>{
+      const chave = ing.trim();
+      if(!chave) return;
+      contagem[chave] = (contagem[chave] || 0) + 1;
+    });
+  });
+  const ingredientes = Object.keys(contagem).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+
+  const wrap = document.getElementById('checklistIngredientesLista');
+  if(ingredientes.length===0){
+    wrap.innerHTML = `<div class="hint">Nenhum ingrediente encontrado. Verifique se os produtos selecionados têm ingredientes cadastrados.</div>`;
+  } else {
+    wrap.innerHTML = ingredientes.map(ing=>{
+      const estado = eventoAtualChecklistIngredientes[ing] || { comprado:false, separado:false };
+      const badge = `usado em ${contagem[ing]} sabor${contagem[ing]>1?'es':''}`;
+      return renderChecklistItemHtml(ing, estado, badge, 'ingredientes');
+    }).join('');
+  }
+  area.style.display = 'block';
+  this.textContent = '📋 Ocultar checklist de Ingredientes';
+  area.scrollIntoView({behavior:'smooth', block:'start'});
+});
+
+document.getElementById('detalheChecklistUtensilios').addEventListener('click', function(){
+  const area = document.getElementById('checklistUtensiliosArea');
+  const jaVisivel = area.style.display === 'block';
+  if(jaVisivel){
+    area.style.display = 'none';
+    this.textContent = '🧰 Checklist de Utensílios/Equipamentos';
+    return;
+  }
+
+  const wrap = document.getElementById('checklistUtensiliosLista');
+  if(utensiliosCache.length===0){
+    wrap.innerHTML = `<div class="hint">Nenhum utensílio/equipamento cadastrado ainda. Cadastre na aba "Utensílios".</div>`;
+  } else {
+    wrap.innerHTML = utensiliosCache.map(u=>{
+      const estado = eventoAtualChecklistUtensilios[u.nome] || { comprado:false, separado:false };
+      return renderChecklistItemHtml(u.nome, estado, u.observacoes || '', 'utensilios');
+    }).join('');
+  }
+  area.style.display = 'block';
+  this.textContent = '🧰 Ocultar checklist de Utensílios/Equipamentos';
+  area.scrollIntoView({behavior:'smooth', block:'start'});
+});
+</script>
+</body>
+</html>
