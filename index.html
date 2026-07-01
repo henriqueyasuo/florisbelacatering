@@ -801,9 +801,12 @@ document.getElementById('eventoSalvar').addEventListener('click', async ()=>{
 });
 
 /* ================= DETALHE DO EVENTO ================= */
+let eventoAtualChecklist = {};
+
 async function abrirDetalheEvento(id){
   eventoAtualId = id;
   const ev = eventosCache.find(x=>x.id===id);
+  eventoAtualChecklist = ev.checklist || {};
   document.getElementById('detalheTitulo').textContent = ev.nome_contratante;
   document.getElementById('dContratante').textContent = ev.nome_contratante;
   document.getElementById('dTelefone').textContent = ev.telefone || '—';
@@ -862,16 +865,39 @@ document.getElementById('detalheChecklist').addEventListener('click', ()=>{
   if(ingredientes.length===0){
     wrap.innerHTML = `<div class="hint">Nenhum ingrediente encontrado. Verifique se os produtos selecionados têm ingredientes cadastrados.</div>`;
   } else {
-    wrap.innerHTML = ingredientes.map((ing,i)=>`
-      <div class="checklist-item" id="ck-${i}">
-        <input type="checkbox" onchange="document.getElementById('ck-${i}').classList.toggle('checked')">
+    wrap.innerHTML = ingredientes.map((ing,i)=>{
+      const marcado = !!eventoAtualChecklist[ing];
+      return `
+      <div class="checklist-item ${marcado?'checked':''}" id="ck-${i}">
+        <input type="checkbox" data-ing="${escapeHtml(ing)}" ${marcado?'checked':''} onchange="onChecklistToggle(this)">
         <label>${escapeHtml(ing)}</label>
         <span class="qtd">usado em ${contagem[ing]} sabor${contagem[ing]>1?'es':''}</span>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }
   document.getElementById('checklistArea').style.display = 'block';
   document.getElementById('checklistArea').scrollIntoView({behavior:'smooth', block:'start'});
 });
+
+async function onChecklistToggle(checkbox){
+  const ing = checkbox.dataset.ing;
+  const marcado = checkbox.checked;
+  checkbox.closest('.checklist-item').classList.toggle('checked', marcado);
+
+  eventoAtualChecklist[ing] = marcado;
+  const { error } = await supabaseClient.from('eventos')
+    .update({ checklist: eventoAtualChecklist })
+    .eq('id', eventoAtualId);
+
+  if(error){
+    console.error('Erro ao salvar checklist:', error);
+    toast('Não foi possível salvar. Tente novamente.');
+    return;
+  }
+  // mantém o cache local sincronizado, sem precisar recarregar tudo
+  const evCache = eventosCache.find(x=>x.id===eventoAtualId);
+  if(evCache) evCache.checklist = { ...eventoAtualChecklist };
+}
 </script>
 </body>
 </html>
