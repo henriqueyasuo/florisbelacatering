@@ -451,7 +451,17 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 let supabase = null;
 let configOk = SUPABASE_URL.startsWith("http") && SUPABASE_ANON_KEY.length > 10;
 if (configOk) {
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  try{
+    if(!window.supabase) throw new Error("Biblioteca do Supabase não carregou (CDN bloqueado ou sem internet).");
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } catch(err){
+    console.error(err);
+    configOk = false;
+    document.addEventListener('DOMContentLoaded', ()=>{
+      const le = document.getElementById('loginError');
+      if(le) le.textContent = "Não foi possível carregar o app: " + err.message;
+    });
+  }
 }
 
 const CATS = { entrada: "Entradas", salgada: "Pizzas Salgadas", doce: "Pizzas Doces" };
@@ -506,25 +516,30 @@ loginForm.addEventListener('submit', async (e)=>{
   loginBtn.disabled = true;
   loginBtn.textContent = "Entrando...";
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+  try{
+    const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
 
-  loginBtn.disabled = false;
-  loginBtn.textContent = "Entrar";
-
-  if(error){
-    console.error('Erro de login:', error);
-    if(error.message === 'Email not confirmed'){
-      loginError.textContent = "E-mail ainda não confirmado. Confira em Authentication → Users se 'Auto Confirm User' foi marcado ao criar o usuário.";
-    } else if(error.message === 'Invalid login credentials'){
-      loginError.textContent = "E-mail ou senha incorretos.";
-    } else {
-      loginError.textContent = "Erro ao entrar: " + error.message;
+    if(error){
+      console.error('Erro de login:', error);
+      if(error.message === 'Email not confirmed'){
+        loginError.textContent = "E-mail ainda não confirmado. Confira em Authentication → Users se 'Auto Confirm User' foi marcado ao criar o usuário.";
+      } else if(error.message === 'Invalid login credentials'){
+        loginError.textContent = "E-mail ou senha incorretos.";
+      } else {
+        loginError.textContent = "Erro ao entrar: " + error.message;
+      }
+      return;
     }
-    return;
+    document.getElementById('loginGate').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    boot();
+  } catch(err){
+    console.error('Falha inesperada no login:', err);
+    loginError.textContent = "Não foi possível conectar ao servidor. Verifique sua internet ou tente novamente (detalhes no console: F12).";
+  } finally {
+    loginBtn.disabled = false;
+    loginBtn.textContent = "Entrar";
   }
-  document.getElementById('loginGate').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-  boot();
 });
 
 document.getElementById('logoutBtn').addEventListener('click', async ()=>{
