@@ -265,6 +265,7 @@
   .ci-check{ display:flex; align-items:center; gap:6px; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:rgba(54,42,34,0.75); }
   .ci-check input[type=checkbox]{ width:17px; height:17px; accent-color:var(--brasa); flex-shrink:0; }
   .ci-check.separado input[type=checkbox]{ accent-color:var(--manjericao); }
+  .ci-check.ci-disabled{ opacity:0.4; }
 
   .toast{
     position:fixed; bottom:96px; left:50%; transform:translateX(-50%) translateY(20px);
@@ -911,6 +912,7 @@ document.getElementById('eventoSalvar').addEventListener('click', async ()=>{
 /* ================= DETALHE DO EVENTO ================= */
 let eventoAtualChecklistIngredientes = {};
 let eventoAtualChecklistUtensilios = {};
+let eventoAtualIngredientesContagem = {};
 
 // Converte formato antigo (chave: true/false) para o novo formato
 // (chave: {comprado, separado}), sem perder o que já estava marcado.
@@ -943,12 +945,31 @@ function renderChecklistItemHtml(chave, estado, badgeRaw, lista){
           <input type="checkbox" data-key="${keyAttr}" data-tipo="comprado" data-lista="${lista}" ${comprado?'checked':''} onchange="onChecklistToggle(this)">
           Comprado
         </label>
-        <label class="ci-check separado">
-          <input type="checkbox" data-key="${keyAttr}" data-tipo="separado" data-lista="${lista}" ${separado?'checked':''} onchange="onChecklistToggle(this)">
+        <label class="ci-check separado ${!comprado?'ci-disabled':''}">
+          <input type="checkbox" data-key="${keyAttr}" data-tipo="separado" data-lista="${lista}" ${separado?'checked':''} ${!comprado?'disabled':''} onchange="onChecklistToggle(this)">
           Separado / no carro
         </label>
       </div>
     </div>`;
+}
+
+/* Define a "fase" de um item do checklist para fins de ordenação:
+   0 = nada marcado · 1 = só "comprado" marcado · 2 = "comprado" e "separado" marcados (concluído) */
+function faseChecklist(estado){
+  if(estado.comprado && estado.separado) return 2;
+  if(estado.comprado || estado.separado) return 1;
+  return 0;
+}
+
+/* Ordena os itens do checklist: primeiro os desmarcados, depois os com "comprado"
+   marcado, e por último os totalmente concluídos — sempre em ordem alfabética dentro
+   de cada grupo. */
+function ordenarChecklist(itens){
+  return itens.slice().sort((a,b)=>{
+    const fa = faseChecklist(a.estado), fb = faseChecklist(b.estado);
+    if(fa !== fb) return fa - fb;
+    return a.chave.localeCompare(b.chave, 'pt-BR');
+  });
 }
 
 async function onChecklistToggle(checkbox){
@@ -961,9 +982,18 @@ async function onChecklistToggle(checkbox){
   if(!estadoObj[key]) estadoObj[key] = { comprado:false, separado:false };
   estadoObj[key][tipo] = marcado;
 
-  const item = checkbox.closest('.checklist-item');
-  const completo = estadoObj[key].comprado && estadoObj[key].separado;
-  item.classList.toggle('checked-all', completo);
+  // "Separado" depende de "Comprado" (são etapas obrigatoriamente sequenciais):
+  // se o "Comprado" for desmarcado, o "Separado" também é desmarcado.
+  if(tipo === 'comprado' && !marcado){
+    estadoObj[key].separado = false;
+  }
+
+  // Re-renderiza a lista correspondente para reordenar conforme o novo estado
+  if(lista === 'ingredientes'){
+    renderChecklistIngredientesList();
+  } else {
+    renderChecklistUtensiliosList();
+  }
 
   const coluna = lista === 'ingredientes' ? 'checklist' : 'checklist_utensilios';
   const { error } = await supabaseClient.from('eventos')
@@ -1049,22 +1079,34 @@ document.getElementById('detalheChecklistIngredientes').addEventListener('click'
       contagem[chave] = (contagem[chave] || 0) + 1;
     });
   });
-  const ingredientes = Object.keys(contagem).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  eventoAtualIngredientesContagem = contagem;
 
-  const wrap = document.getElementById('checklistIngredientesLista');
-  if(ingredientes.length===0){
-    wrap.innerHTML = `<div class="hint">Nenhum ingrediente encontrado. Verifique se os produtos selecionados têm ingredientes cadastrados.</div>`;
-  } else {
-    wrap.innerHTML = ingredientes.map(ing=>{
-      const estado = eventoAtualChecklistIngredientes[ing] || { comprado:false, separado:false };
-      const badge = `usado em ${contagem[ing]} sabor${contagem[ing]>1?'es':''}`;
-      return renderChecklistItemHtml(ing, estado, badge, 'ingredientes');
-    }).join('');
-  }
+  renderChecklistIngredientesList();
+
   area.style.display = 'block';
   this.textContent = '📋 Ocultar checklist de Ingredientes';
   area.scrollIntoView({behavior:'smooth', block:'start'});
 });
+
+function renderChecklistIngredientesList(){
+  const wrap = document.getElementById('checklistIngredientesLista');
+  const chaves = Object.keys(eventoAtualIngredientesContagem);
+  if(chaves.length===0){
+    wrap.innerHTML = `<div class="hint">Nenhum ingrediente encontrado. Verifique se os produtos selecionados têm ingredientes cadastrados.</div>`;
+    return;
+  }
+  const itens = chaves.map(chave=>{
+    const qtd = eventoAtualIngredientesContagem[chave];
+    return {
+      chave,
+      estado: eventoAtualChecklistIngredientes[chave] || { comprado:false, separado:false },
+      badge: `usado em ${qtd} sabor${qtd>1?'es':''}`
+    };
+  });
+  wrap.innerHTML = ordenarChecklist(itens)
+    .map(it=>renderChecklistItemHtml(it.chave, it.estado, it.badge, 'ingredientes'))
+    .join('');
+}
 
 document.getElementById('detalheChecklistUtensilios').addEventListener('click', function(){
   const area = document.getElementById('checklistUtensiliosArea');
@@ -1075,19 +1117,28 @@ document.getElementById('detalheChecklistUtensilios').addEventListener('click', 
     return;
   }
 
-  const wrap = document.getElementById('checklistUtensiliosLista');
-  if(utensiliosCache.length===0){
-    wrap.innerHTML = `<div class="hint">Nenhum utensílio/equipamento cadastrado ainda. Cadastre na aba "Utensílios".</div>`;
-  } else {
-    wrap.innerHTML = utensiliosCache.map(u=>{
-      const estado = eventoAtualChecklistUtensilios[u.nome] || { comprado:false, separado:false };
-      return renderChecklistItemHtml(u.nome, estado, u.observacoes || '', 'utensilios');
-    }).join('');
-  }
+  renderChecklistUtensiliosList();
+
   area.style.display = 'block';
   this.textContent = '🧰 Ocultar checklist de Utensílios/Equipamentos';
   area.scrollIntoView({behavior:'smooth', block:'start'});
 });
+
+function renderChecklistUtensiliosList(){
+  const wrap = document.getElementById('checklistUtensiliosLista');
+  if(utensiliosCache.length===0){
+    wrap.innerHTML = `<div class="hint">Nenhum utensílio/equipamento cadastrado ainda. Cadastre na aba "Utensílios".</div>`;
+    return;
+  }
+  const itens = utensiliosCache.map(u=>({
+    chave: u.nome,
+    estado: eventoAtualChecklistUtensilios[u.nome] || { comprado:false, separado:false },
+    badge: u.observacoes || ''
+  }));
+  wrap.innerHTML = ordenarChecklist(itens)
+    .map(it=>renderChecklistItemHtml(it.chave, it.estado, it.badge, 'utensilios'))
+    .join('');
+}
 </script>
 </body>
 </html>
