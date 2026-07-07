@@ -334,6 +334,15 @@
     <div class="view" id="view-utensilios">
       <div id="utensiliosLista"></div>
     </div>
+
+    <!-- ---- VIEW: INFORMAÇÕES GERAIS ---- -->
+    <div class="view" id="view-info">
+      <div class="detalhe-card" style="margin-top:4px;">
+        <div id="infoTexto" style="font-size:13.5px; line-height:1.7;"></div>
+      </div>
+      <button class="btn primary" id="infoCopiarBtn" style="width:100%; margin-bottom:28px;">📋 Copiar texto para enviar</button>
+      <div class="hint" style="text-align:center; margin-bottom:24px;">Os sabores cadastrados na aba "Produtos" aparecem aqui automaticamente.</div>
+    </div>
   </main>
 
   <button class="fab" id="fabAdd">+</button>
@@ -343,6 +352,7 @@
       <button class="tabbtn active" data-view="produtos"><span class="ic">🧾</span>Produtos</button>
       <button class="tabbtn" data-view="eventos"><span class="ic">📅</span>Eventos</button>
       <button class="tabbtn" data-view="utensilios"><span class="ic">🧰</span>Utensílios</button>
+      <button class="tabbtn" data-view="info"><span class="ic">ℹ️</span>Info</button>
     </div>
   </nav>
 </div>
@@ -621,6 +631,8 @@ document.querySelectorAll('.tabbtn').forEach(btn=>{
     btn.classList.add('active');
     document.getElementById('view-'+btn.dataset.view).classList.add('active');
     document.getElementById('fabAdd').dataset.contexto = btn.dataset.view;
+    document.getElementById('fabAdd').style.display = (btn.dataset.view === 'info') ? 'none' : '';
+    if(btn.dataset.view === 'info') renderInfoView();
   });
 });
 document.getElementById('fabAdd').dataset.contexto = 'produtos';
@@ -1134,6 +1146,98 @@ document.getElementById('detalheChecklistUtensilios').addEventListener('click', 
   area.style.display = 'block';
   this.textContent = '🧰 Ocultar checklist de Utensílios/Equipamentos';
   area.scrollIntoView({behavior:'smooth', block:'start'});
+});
+
+/* ================= INFORMAÇÕES GERAIS ================= */
+// Texto-base fixo, no formato de formatação do WhatsApp (*negrito*, - lista).
+// A lista de sabores é montada dinamicamente a partir do cadastro de Produtos.
+const INFO_TEXTO_BASE = `🍕 *Pizza para Eventos*
+
+*Sobre o serviço*
+As pizzas são estilo contemporâneo, com massa de fermentação natural e processo de longa fermentação — o que garante leveza, fácil digestão e mais complexidade de sabores. Resumindo: a massa é a estrela da pizza, tem sabor e não dá azia.
+
+Como aperitivo de entrada, é servido um crostini de parmesão feito com uma variação da massa da pizza, com raspas de limão siciliano e finalizado com creme balsâmico.
+
+Conforme a quantidade de convidados, as pizzas podem ser:
+- Fatiadas em 6, 8 ou 10 pedaços;
+- Dispostas na mesa ou em aparador.
+
+*Valores* (mínimo de 15 pessoas)
+- 15 pessoas: R$ 70,00 por pessoa
+- 16 a 20 pessoas: R$ 65,00 por pessoa
+- 21 a 25 pessoas: R$ 60,00 por pessoa
+- Acima de 26 pessoas: R$ 55,90 por pessoa
+
+Crianças até 5 anos não pagam. De 6 a 10 anos, pagam 50% do valor.
+
+*Duração do evento*: entre 3 e 4 horas, conforme combinado.
+
+*O que está incluso*
+Produtos e mão de obra para o preparo das pizzas durante a duração do evento.
+
+*O que não está incluso*
+- Serviço de garçom;
+- Pratos e talheres;
+- Copos e taças.
+
+*O que eu preciso, a princípio*
+- Uma tomada 220V;
+- Combinar uma visita ao local, para eu ter ideia de como montar a estrutura;
+- Uma ideia da quantidade de convidados.
+`;
+
+let textoInformacoesAtual = '';
+
+function gerarSaboresTexto(){
+  const salgadas = produtosCache.filter(p=>p.categoria==='salgada').sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+  const doces = produtosCache.filter(p=>p.categoria==='doce').sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+
+  let txt = '*Sabores disponíveis*\n\n';
+
+  txt += 'Pizzas Salgadas:\n';
+  if(salgadas.length === 0){
+    txt += '(nenhum sabor salgado cadastrado ainda)\n';
+  } else {
+    salgadas.forEach(p=>{
+      const ingr = (p.ingredientes||[]).join(', ');
+      txt += `* ${p.nome.toUpperCase()}\n`;
+      if(ingr) txt += `(${ingr})\n`;
+    });
+  }
+
+  txt += '\nPizzas Doces:\n';
+  if(doces.length === 0){
+    txt += '(nenhum sabor doce cadastrado ainda)\n';
+  } else {
+    doces.forEach(p=>{
+      txt += `* ${p.nome.toUpperCase()}\n`;
+    });
+  }
+
+  txt += '\nVocê escolhe 5 sabores salgados e 2 sabores doces.';
+  return txt;
+}
+
+function textoParaHtml(txt){
+  let html = escapeHtml(txt);
+  html = html.replace(/\*(.+?)\*/g, '<strong>$1</strong>');
+  html = html.replace(/\n/g, '<br>');
+  return html;
+}
+
+function renderInfoView(){
+  textoInformacoesAtual = INFO_TEXTO_BASE.trim() + '\n\n' + gerarSaboresTexto();
+  document.getElementById('infoTexto').innerHTML = textoParaHtml(textoInformacoesAtual);
+}
+
+document.getElementById('infoCopiarBtn').addEventListener('click', async ()=>{
+  try{
+    await navigator.clipboard.writeText(textoInformacoesAtual);
+    toast('Texto copiado! Agora é só colar no WhatsApp.');
+  } catch(err){
+    console.error('Erro ao copiar:', err);
+    toast('Não foi possível copiar automaticamente. Selecione o texto manualmente.');
+  }
 });
 </script>
 </body>
