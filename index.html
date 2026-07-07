@@ -265,7 +265,8 @@
   .ci-check{ display:flex; align-items:center; gap:6px; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:rgba(54,42,34,0.75); }
   .ci-check input[type=checkbox]{ width:17px; height:17px; accent-color:var(--brasa); flex-shrink:0; }
   .ci-check.separado input[type=checkbox]{ accent-color:var(--manjericao); }
-  .ci-check.ci-disabled{ opacity:0.4; }
+  .ci-check input[type=checkbox]:disabled{ opacity:0.35; cursor:not-allowed; }
+  .ci-check:has(input[type=checkbox]:disabled){ opacity:0.45; }
 
   .toast{
     position:fixed; bottom:96px; left:50%; transform:translateX(-50%) translateY(20px);
@@ -912,7 +913,42 @@ document.getElementById('eventoSalvar').addEventListener('click', async ()=>{
 /* ================= DETALHE DO EVENTO ================= */
 let eventoAtualChecklistIngredientes = {};
 let eventoAtualChecklistUtensilios = {};
-let eventoAtualIngredientesContagem = {};
+
+// Metadados (chave + badge) dos itens de cada checklist, usados para
+// re-renderizar a lista já ordenada sempre que um checkbox muda.
+let checklistIngredientesItens = [];
+let checklistUtensiliosItens = [];
+
+// Tier 0 = nada marcado, 1 = só "comprado", 2 = completo (comprado + separado).
+// Itens completos vão para o final, "limpando" a lista do que já está pronto.
+function getChecklistTier(estado){
+  const comprado = !!(estado && estado.comprado);
+  const separado = !!(estado && estado.separado);
+  if(comprado && separado) return 2;
+  if(comprado) return 1;
+  return 0;
+}
+
+function renderChecklistOrdenado(lista){
+  const isIngredientes = lista === 'ingredientes';
+  const itens = isIngredientes ? checklistIngredientesItens : checklistUtensiliosItens;
+  const estadoObj = isIngredientes ? eventoAtualChecklistIngredientes : eventoAtualChecklistUtensilios;
+  const wrap = document.getElementById(isIngredientes ? 'checklistIngredientesLista' : 'checklistUtensiliosLista');
+  if(!wrap) return;
+  if(itens.length === 0) return;
+
+  const ordenado = [...itens].sort((a,b)=>{
+    const ta = getChecklistTier(estadoObj[a.chave]);
+    const tb = getChecklistTier(estadoObj[b.chave]);
+    if(ta !== tb) return ta - tb;
+    return a.chave.localeCompare(b.chave, 'pt-BR');
+  });
+
+  wrap.innerHTML = ordenado.map(it=>{
+    const estado = estadoObj[it.chave] || { comprado:false, separado:false };
+    return renderChecklistItemHtml(it.chave, estado, it.badge, lista);
+  }).join('');
+}
 
 // Converte formato antigo (chave: true/false) para o novo formato
 // (chave: {comprado, separado}), sem perder o que já estava marcado.
@@ -945,31 +981,12 @@ function renderChecklistItemHtml(chave, estado, badgeRaw, lista){
           <input type="checkbox" data-key="${keyAttr}" data-tipo="comprado" data-lista="${lista}" ${comprado?'checked':''} onchange="onChecklistToggle(this)">
           Comprado
         </label>
-        <label class="ci-check separado ${!comprado?'ci-disabled':''}">
-          <input type="checkbox" data-key="${keyAttr}" data-tipo="separado" data-lista="${lista}" ${separado?'checked':''} ${!comprado?'disabled':''} onchange="onChecklistToggle(this)">
+        <label class="ci-check separado">
+          <input type="checkbox" data-key="${keyAttr}" data-tipo="separado" data-lista="${lista}" ${separado?'checked':''} ${comprado?'':'disabled'} onchange="onChecklistToggle(this)">
           Separado / no carro
         </label>
       </div>
     </div>`;
-}
-
-/* Define a "fase" de um item do checklist para fins de ordenação:
-   0 = nada marcado · 1 = só "comprado" marcado · 2 = "comprado" e "separado" marcados (concluído) */
-function faseChecklist(estado){
-  if(estado.comprado && estado.separado) return 2;
-  if(estado.comprado || estado.separado) return 1;
-  return 0;
-}
-
-/* Ordena os itens do checklist: primeiro os desmarcados, depois os com "comprado"
-   marcado, e por último os totalmente concluídos — sempre em ordem alfabética dentro
-   de cada grupo. */
-function ordenarChecklist(itens){
-  return itens.slice().sort((a,b)=>{
-    const fa = faseChecklist(a.estado), fb = faseChecklist(b.estado);
-    if(fa !== fb) return fa - fb;
-    return a.chave.localeCompare(b.chave, 'pt-BR');
-  });
 }
 
 async function onChecklistToggle(checkbox){
@@ -982,18 +999,15 @@ async function onChecklistToggle(checkbox){
   if(!estadoObj[key]) estadoObj[key] = { comprado:false, separado:false };
   estadoObj[key][tipo] = marcado;
 
-  // "Separado" depende de "Comprado" (são etapas obrigatoriamente sequenciais):
-  // se o "Comprado" for desmarcado, o "Separado" também é desmarcado.
+  // "Separado / no carro" só faz sentido depois de "Comprado".
+  // Se "Comprado" for desmarcado, desmarca "Separado" junto.
   if(tipo === 'comprado' && !marcado){
     estadoObj[key].separado = false;
   }
 
-  // Re-renderiza a lista correspondente para reordenar conforme o novo estado
-  if(lista === 'ingredientes'){
-    renderChecklistIngredientesList();
-  } else {
-    renderChecklistUtensiliosList();
-  }
+  // Re-renderiza a lista já ordenada (itens completos vão para o final),
+  // o que também recria o checkbox "Separado" com o estado disabled correto.
+  renderChecklistOrdenado(lista);
 
   const coluna = lista === 'ingredientes' ? 'checklist' : 'checklist_utensilios';
   const { error } = await supabaseClient.from('eventos')
@@ -1079,34 +1093,23 @@ document.getElementById('detalheChecklistIngredientes').addEventListener('click'
       contagem[chave] = (contagem[chave] || 0) + 1;
     });
   });
-  eventoAtualIngredientesContagem = contagem;
+  const ingredientes = Object.keys(contagem).sort((a,b)=>a.localeCompare(b,'pt-BR'));
 
-  renderChecklistIngredientesList();
-
+  const wrap = document.getElementById('checklistIngredientesLista');
+  if(ingredientes.length===0){
+    checklistIngredientesItens = [];
+    wrap.innerHTML = `<div class="hint">Nenhum ingrediente encontrado. Verifique se os produtos selecionados têm ingredientes cadastrados.</div>`;
+  } else {
+    checklistIngredientesItens = ingredientes.map(ing=>({
+      chave: ing,
+      badge: `usado em ${contagem[ing]} sabor${contagem[ing]>1?'es':''}`
+    }));
+    renderChecklistOrdenado('ingredientes');
+  }
   area.style.display = 'block';
   this.textContent = '📋 Ocultar checklist de Ingredientes';
   area.scrollIntoView({behavior:'smooth', block:'start'});
 });
-
-function renderChecklistIngredientesList(){
-  const wrap = document.getElementById('checklistIngredientesLista');
-  const chaves = Object.keys(eventoAtualIngredientesContagem);
-  if(chaves.length===0){
-    wrap.innerHTML = `<div class="hint">Nenhum ingrediente encontrado. Verifique se os produtos selecionados têm ingredientes cadastrados.</div>`;
-    return;
-  }
-  const itens = chaves.map(chave=>{
-    const qtd = eventoAtualIngredientesContagem[chave];
-    return {
-      chave,
-      estado: eventoAtualChecklistIngredientes[chave] || { comprado:false, separado:false },
-      badge: `usado em ${qtd} sabor${qtd>1?'es':''}`
-    };
-  });
-  wrap.innerHTML = ordenarChecklist(itens)
-    .map(it=>renderChecklistItemHtml(it.chave, it.estado, it.badge, 'ingredientes'))
-    .join('');
-}
 
 document.getElementById('detalheChecklistUtensilios').addEventListener('click', function(){
   const area = document.getElementById('checklistUtensiliosArea');
@@ -1117,28 +1120,21 @@ document.getElementById('detalheChecklistUtensilios').addEventListener('click', 
     return;
   }
 
-  renderChecklistUtensiliosList();
-
+  const wrap = document.getElementById('checklistUtensiliosLista');
+  if(utensiliosCache.length===0){
+    checklistUtensiliosItens = [];
+    wrap.innerHTML = `<div class="hint">Nenhum utensílio/equipamento cadastrado ainda. Cadastre na aba "Utensílios".</div>`;
+  } else {
+    checklistUtensiliosItens = utensiliosCache.map(u=>({
+      chave: u.nome,
+      badge: u.observacoes || ''
+    }));
+    renderChecklistOrdenado('utensilios');
+  }
   area.style.display = 'block';
   this.textContent = '🧰 Ocultar checklist de Utensílios/Equipamentos';
   area.scrollIntoView({behavior:'smooth', block:'start'});
 });
-
-function renderChecklistUtensiliosList(){
-  const wrap = document.getElementById('checklistUtensiliosLista');
-  if(utensiliosCache.length===0){
-    wrap.innerHTML = `<div class="hint">Nenhum utensílio/equipamento cadastrado ainda. Cadastre na aba "Utensílios".</div>`;
-    return;
-  }
-  const itens = utensiliosCache.map(u=>({
-    chave: u.nome,
-    estado: eventoAtualChecklistUtensilios[u.nome] || { comprado:false, separado:false },
-    badge: u.observacoes || ''
-  }));
-  wrap.innerHTML = ordenarChecklist(itens)
-    .map(it=>renderChecklistItemHtml(it.chave, it.estado, it.badge, 'utensilios'))
-    .join('');
-}
 </script>
 </body>
 </html>
